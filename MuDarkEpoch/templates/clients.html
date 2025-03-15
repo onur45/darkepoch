@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block title %}Dark Epoch Bot - İstemci Pencereleri{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">İstemci Pencereleri</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-sm btn-outline-primary" id="btnScanWindows">
+                <i class="fas fa-search me-1"></i> Pencereleri Tara
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.location.reload()">
+                <i class="fas fa-sync me-1"></i> Yenile
+            </button>
+        </div>
+    </div>
+</div>
+
+{% if clients %}
+<div class="row">
+    {% for client in clients %}
+    <div class="col-md-6 col-xl-4 mb-4">
+        <div class="card bg-dark border-secondary h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">{{ client.title }}</h5>
+                <span class="badge {% if client.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                    {% if client.is_active %}Aktif{% else %}Pasif{% endif %}
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-6">
+                        <p><i class="fas fa-window-maximize me-2 text-muted"></i> 
+                           <strong>Boyut:</strong> {{ client.width }}x{{ client.height }}</p>
+                    </div>
+                    <div class="col-6">
+                        <p><i class="fas fa-map-marker-alt me-2 text-muted"></i> 
+                           <strong>Konum:</strong> {{ client.position_x }}, {{ client.position_y }}</p>
+                    </div>
+                </div>
+                <p><i class="fas fa-key me-2 text-muted"></i> <strong>HWND:</strong> {{ client.hwnd }}</p>
+                <p><i class="fas fa-clock me-2 text-muted"></i> <strong>Son Görülme:</strong> {{ client.last_seen }}</p>
+            </div>
+            <div class="card-footer bg-dark border-secondary">
+                <div class="d-flex justify-content-between">
+                    <button type="button" class="btn btn-sm btn-outline-primary" 
+                            onclick="focusWindow('{{ client.hwnd }}')">
+                        <i class="fas fa-eye me-1"></i> Odaklan
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-warning" 
+                            onclick="arrangeWindows()">
+                        <i class="fas fa-th-large me-1"></i> Pencereleri Düzenle
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    Henüz hiçbir istemci penceresi tanınmadı. "Pencereleri Tara" düğmesine tıklayarak mevcut pencereleri tarayın.
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-8 mx-auto">
+        <div class="card bg-dark border-secondary">
+            <div class="card-header">
+                <h5 class="mb-0">Pencere Tarama Yardımı</h5>
+            </div>
+            <div class="card-body">
+                <ol class="mb-3">
+                    <li>Dark Epoch oyun istemcilerini açın</li>
+                    <li>Oyun pencerelerinin açık ve görünür olduğundan emin olun</li>
+                    <li>"Pencereleri Tara" düğmesine tıklayarak istemcileri bulun</li>
+                    <li>Pencereleri otomatik olarak düzenlemek için "Pencereleri Düzenle" seçeneğini kullanın</li>
+                </ol>
+                <p class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Bot, pencere başlıkları ayarlarda belirtilen desenlere uyan pencereleri arayacaktır.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const btnScanWindows = document.getElementById('btnScanWindows');
+        
+        if (btnScanWindows) {
+            btnScanWindows.addEventListener('click', function() {
+                this.disabled = true;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Taranıyor...';
+                
+                // Aslında bu API çağrısı Windows'ta çalışacak bir bot tarafından yapılacak
+                // Replit'te bu sadece simüle edilmiş bir işlev olacak
+                fetch('/api/clients/update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify([]) // Boş liste - gerçekte bot tarafından doldurulacak
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        alert('Pencereler taranırken hata oluştu: ' + (data.error || 'Bilinmeyen hata'));
+                        this.disabled = false;
+                        this.innerHTML = '<i class="fas fa-search me-1"></i> Pencereleri Tara';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Pencereler taranırken bir ağ hatası oluştu');
+                    this.disabled = false;
+                    this.innerHTML = '<i class="fas fa-search me-1"></i> Pencereleri Tara';
+                });
+            });
+        }
+    });
+    
+    function focusWindow(hwnd) {
+        // Bu işlev, gerçekte Windows PC'de çalışacak botla iletişim kuracak
+        // Şu anda sadece bir uyarı gösterecek
+        alert(`Pencere odaklanma işlevi: HWND ${hwnd}\n\nBu işlev sadece Windows'ta çalışan bot tarafında çalışacaktır.`);
+    }
+    
+    function arrangeWindows() {
+        // Bu işlev, gerçekte Windows PC'de çalışacak botla iletişim kuracak
+        // Şu anda sadece bir uyarı gösterecek
+        alert('Pencereleri düzenleme işlevi: Bu işlev sadece Windows\'ta çalışan bot tarafında çalışacaktır.');
+    }
+</script>
+{% endblock %}

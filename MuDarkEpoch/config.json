@@ -1,0 +1,17 @@
+{
+    "client_window_titles": [
+        "game",
+        "LDPlayer"
+    ],
+    "confidence_threshold": 0.7,
+    "click_delay_min": 0.2,
+    "click_delay_max": 0.5,
+    "cycle_delay_min": 1.0,
+    "cycle_delay_max": 3.0,
+    "error_threshold": 5,
+    "web_api_url": "http://localhost:5000",
+    "api_key": "",
+    "reference_images_dir": "reference_images",
+    "screenshots_dir": "screenshots",
+    "logs_dir": "logs"
+}

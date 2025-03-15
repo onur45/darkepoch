@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}Dark Epoch Bot - Loglar{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">Bot Logları</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.location.reload()">
+                <i class="fas fa-sync me-1"></i> Yenile
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card bg-dark border-secondary">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Log Kayıtları</h5>
+                <div>
+                    <select class="form-select form-select-sm" id="logLevelFilter">
+                        <option value="all">Tüm Seviyeler</option>
+                        <option value="INFO">Bilgi</option>
+                        <option value="WARNING">Uyarı</option>
+                        <option value="ERROR">Hata</option>
+                        <option value="CRITICAL">Kritik</option>
+                        <option value="DEBUG">Debug</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if logs.items %}
+                <div class="table-responsive">
+                    <table class="table table-dark table-hover">
+                        <thead>
+                            <tr>
+                                <th>Zaman</th>
+                                <th>Seviye</th>
+                                <th>Mesaj</th>
+                                <th>İstemci</th>
+                                <th>Görev</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in logs.items %}
+                            <tr class="log-item" data-level="{{ log.level }}">
+                                <td>{{ log.created_at }}</td>
+                                <td>
+                                    <span class="badge {% if log.level == 'INFO' %}bg-info{% elif log.level == 'WARNING' %}bg-warning{% elif log.level == 'ERROR' or log.level == 'CRITICAL' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                        {{ log.level }}
+                                    </span>
+                                </td>
+                                <td>{{ log.message }}</td>
+                                <td>{{ log.client_id if log.client_id else '-' }}</td>
+                                <td>{{ log.task_id if log.task_id else '-' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Sayfalama -->
+                <nav aria-label="Log sayfaları">
+                    <ul class="pagination justify-content-center">
+                        {% if logs.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('log_list', page=logs.prev_num) }}">Önceki</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">Önceki</span>
+                        </li>
+                        {% endif %}
+                        
+                        {% for page_num in logs.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != logs.page %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('log_list', page=page_num) }}">{{ page_num }}</a>
+                                </li>
+                                {% else %}
+                                <li class="page-item active" aria-current="page">
+                                    <span class="page-link">{{ page_num }}</span>
+                                </li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if logs.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('log_list', page=logs.next_num) }}">Sonraki</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">Sonraki</span>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Henüz log kaydı bulunmuyor.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const logLevelFilter = document.getElementById('logLevelFilter');
+        
+        if (logLevelFilter) {
+            logLevelFilter.addEventListener('change', function() {
+                const selectedLevel = this.value;
+                const logItems = document.querySelectorAll('.log-item');
+                
+                logItems.forEach(function(item) {
+                    if (selectedLevel === 'all' || item.dataset.level === selectedLevel) {
+                        item.style.display = '';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}

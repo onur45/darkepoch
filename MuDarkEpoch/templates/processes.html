@@ -1,0 +1,298 @@
+{% extends 'base.html' %}
+
+{% block title %}Process Yönetimi - Dark Epoch Bot{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <h2>Process Yönetimi</h2>
+            <p class="text-muted">
+                Bu sayfa Dark Epoch oyun process'lerini yönetmenizi sağlar.
+                <br><span class="text-warning">Not: Bu özellik sadece Windows'ta çalışır.</span>
+            </p>
+        </div>
+        <div class="col-md-4 text-end">
+            <button id="refreshBtn" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-clockwise"></i> Yenile
+            </button>
+            <button id="startProcessBtn" class="btn btn-success">
+                <i class="bi bi-play-fill"></i> Yeni Process Başlat
+            </button>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-header bg-dark">
+            <h5 class="card-title mb-0">Aktif Process'ler</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Process Adı</th>
+                            <th>PID</th>
+                            <th>CPU Kullanımı</th>
+                            <th>Bellek Kullanımı</th>
+                            <th>Durum</th>
+                            <th>Başlama Zamanı</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody id="processTable">
+                        <tr>
+                            <td colspan="8" class="text-center">Yükleniyor...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-dark">
+                    <h5 class="card-title mb-0">Sistem Durumu</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">CPU Kullanımı:</label>
+                                <div class="progress">
+                                    <div id="cpuProgress" class="progress-bar progress-bar-striped" role="progressbar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Bellek Kullanımı:</label>
+                                <div class="progress">
+                                    <div id="memoryProgress" class="progress-bar progress-bar-striped bg-info" role="progressbar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-dark">
+                    <h5 class="card-title mb-0">Bilgi</h5>
+                </div>
+                <div class="card-body">
+                    <p>Dark Epoch oyununu başlatmak ve yönetmek için bu sayfayı kullanabilirsiniz.</p>
+                    <p>Birden fazla istemci çalıştırabilirsiniz ancak sistemin en fazla 2 aktif pencereyi kontrol edebileceğini unutmayın.</p>
+                    <p><strong>Not:</strong> Process kontrolü sadece Windows'ta çalışır. Replit'te bu sayfa demo amaçlıdır.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Process Kapatma Onay Modalı -->
+<div class="modal fade" id="confirmStopModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Process'i Kapat</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Bu process'i kapatmak istediğinizden emin misiniz?</p>
+                <p><strong>Process:</strong> <span id="processNameToStop"></span></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                <button type="button" class="btn btn-danger" id="confirmStopBtn">Process'i Kapat</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let processIdToStop = null;
+
+    // Process listesini güncelle
+    function updateProcesses() {
+        fetch('/api/processes')
+            .then(response => response.json())
+            .then(data => {
+                const tableBody = document.getElementById('processTable');
+                
+                if (!data || data.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="8" class="text-center">Aktif process bulunamadı</td></tr>';
+                    return;
+                }
+                
+                let html = '';
+                data.forEach(process => {
+                    const statusBadge = process.status === 'running' 
+                        ? '<span class="badge bg-success">Çalışıyor</span>' 
+                        : '<span class="badge bg-warning">Beklemede</span>';
+                    
+                    html += `
+                    <tr>
+                        <td>${process.id}</td>
+                        <td>${process.name}</td>
+                        <td>${process.pid}</td>
+                        <td>${process.cpu_percent.toFixed(1)}%</td>
+                        <td>${process.memory_percent.toFixed(1)}%</td>
+                        <td>${statusBadge}</td>
+                        <td>${new Date(process.create_time).toLocaleString()}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger stopProcessBtn" data-id="${process.id}" data-name="${process.name}">
+                                <i class="bi bi-stop-fill"></i> Kapat
+                            </button>
+                        </td>
+                    </tr>
+                    `;
+                });
+                
+                tableBody.innerHTML = html;
+                
+                // Stop process butonlarına event listener ekle
+                document.querySelectorAll('.stopProcessBtn').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const processId = this.getAttribute('data-id');
+                        const processName = this.getAttribute('data-name');
+                        
+                        // Modal'ı güncelle ve göster
+                        document.getElementById('processNameToStop').textContent = `${processName} (ID: ${processId})`;
+                        processIdToStop = processId;
+                        
+                        const modal = new bootstrap.Modal(document.getElementById('confirmStopModal'));
+                        modal.show();
+                    });
+                });
+                
+                // Durum çubuklarını güncelle
+                updateSystemStatus(data);
+            })
+            .catch(error => {
+                console.error('Process verisi alınamadı:', error);
+                const tableBody = document.getElementById('processTable');
+                tableBody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Veriler alınırken hata oluştu</td></tr>';
+            });
+    }
+    
+    // Sistem durum çubuklarını güncelle
+    function updateSystemStatus(processes) {
+        // Demo veriler (gerçek uygulamada burası server'dan alınan verilerle doldurulabilir)
+        let totalCpu = 0;
+        let totalMemory = 0;
+        
+        processes.forEach(process => {
+            totalCpu += process.cpu_percent;
+            totalMemory += process.memory_percent;
+        });
+        
+        // CPU çubuğunu güncelle (max 100%)
+        const cpuValue = Math.min(totalCpu, 100);
+        const cpuBar = document.getElementById('cpuProgress');
+        cpuBar.style.width = `${cpuValue}%`;
+        cpuBar.textContent = `${cpuValue.toFixed(1)}%`;
+        
+        if (cpuValue > 75) {
+            cpuBar.classList.remove('bg-success', 'bg-warning');
+            cpuBar.classList.add('bg-danger');
+        } else if (cpuValue > 50) {
+            cpuBar.classList.remove('bg-success', 'bg-danger');
+            cpuBar.classList.add('bg-warning');
+        } else {
+            cpuBar.classList.remove('bg-warning', 'bg-danger');
+            cpuBar.classList.add('bg-success');
+        }
+        
+        // Bellek çubuğunu güncelle (max 100%)
+        const memValue = Math.min(totalMemory, 100);
+        const memBar = document.getElementById('memoryProgress');
+        memBar.style.width = `${memValue}%`;
+        memBar.textContent = `${memValue.toFixed(1)}%`;
+        
+        if (memValue > 75) {
+            memBar.classList.remove('bg-info', 'bg-warning');
+            memBar.classList.add('bg-danger');
+        } else if (memValue > 50) {
+            memBar.classList.remove('bg-info', 'bg-danger');
+            memBar.classList.add('bg-warning');
+        } else {
+            memBar.classList.remove('bg-warning', 'bg-danger');
+            memBar.classList.add('bg-info');
+        }
+    }
+    
+    // Sayfa yüklendiğinde verileri getir
+    document.addEventListener('DOMContentLoaded', function() {
+        updateProcesses();
+        
+        // Yenile butonu
+        document.getElementById('refreshBtn').addEventListener('click', updateProcesses);
+        
+        // Yeni process başlatma butonu
+        document.getElementById('startProcessBtn').addEventListener('click', function() {
+            fetch('/api/processes/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Process başlatma isteği gönderildi');
+                    setTimeout(updateProcesses, 1000); // 1 saniye bekle ve yenile
+                } else {
+                    alert('Hata: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Process başlatılamadı:', error);
+                alert('Process başlatılırken bir hata oluştu');
+            });
+        });
+        
+        // Process kapatma onay butonu
+        document.getElementById('confirmStopBtn').addEventListener('click', function() {
+            if (processIdToStop) {
+                fetch('/api/processes/stop', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        process_id: processIdToStop
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Modal'ı kapat
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('confirmStopModal'));
+                    modal.hide();
+                    
+                    if (data.success) {
+                        alert('Process kapatma isteği gönderildi');
+                        setTimeout(updateProcesses, 1000); // 1 saniye bekle ve yenile
+                    } else {
+                        alert('Hata: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Process kapatılamadı:', error);
+                    alert('Process kapatılırken bir hata oluştu');
+                });
+            }
+        });
+        
+        // Her 30 saniyede bir verileri otomatik yenile
+        setInterval(updateProcesses, 30000);
+    });
+</script>
+{% endblock %}

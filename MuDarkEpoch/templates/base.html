@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="tr" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Dark Epoch Bot{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        .task-card {
+            transition: all 0.3s;
+        }
+        .task-card:hover {
+            transform: translateY(-5px);
+        }
+        .sidebar {
+            height: 100vh;
+            position: sticky;
+            top: 0;
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        .status-green {
+            background-color: var(--bs-success);
+        }
+        .status-red {
+            background-color: var(--bs-danger);
+        }
+        .status-yellow {
+            background-color: var(--bs-warning);
+        }
+        .log-info {
+            border-left: 4px solid var(--bs-info);
+        }
+        .log-warning {
+            border-left: 4px solid var(--bs-warning);
+        }
+        .log-error {
+            border-left: 4px solid var(--bs-danger);
+        }
+        .log-critical {
+            border-left: 4px solid var(--bs-danger);
+            background-color: rgba(var(--bs-danger-rgb), 0.1);
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 d-md-block bg-body-tertiary sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <div class="mb-4 px-3 d-flex align-items-center">
+                        <i class="fas fa-robot fs-3 me-2"></i>
+                        <h5 class="m-0">Dark Epoch Bot</h5>
+                    </div>
+                    
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{{ url_for('index') }}">
+                                <i class="fas fa-tachometer-alt me-2"></i>
+                                Gösterge Paneli
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if '/tasks' in request.path %}active{% endif %}" href="{{ url_for('task_list') }}">
+                                <i class="fas fa-tasks me-2"></i>
+                                Görevler
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if '/clients' in request.path %}active{% endif %}" href="{{ url_for('client_list') }}">
+                                <i class="fas fa-desktop me-2"></i>
+                                İstemciler
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if '/processes' in request.path %}active{% endif %}" href="{{ url_for('process_list') }}">
+                                <i class="fas fa-server me-2"></i>
+                                Process Yönetimi
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if '/config' in request.path %}active{% endif %}" href="{{ url_for('config_list') }}">
+                                <i class="fas fa-cog me-2"></i>
+                                Konfigürasyon
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if '/logs' in request.path %}active{% endif %}" href="{{ url_for('log_list') }}">
+                                <i class="fas fa-list-ul me-2"></i>
+                                Loglar
+                            </a>
+                        </li>
+                    </ul>
+                    
+                    <hr>
+                    
+                    <div class="px-3">
+                        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-2 text-muted">
+                            <span>Bot Durumu</span>
+                        </h6>
+                        <div class="mb-2">
+                            <span class="status-indicator {% if bot_status.running and not bot_status.paused %}status-green{% elif bot_status.paused %}status-yellow{% else %}status-red{% endif %}"></span>
+                            {% if bot_status.running and not bot_status.paused %}
+                                Çalışıyor
+                            {% elif bot_status.paused %}
+                                Duraklatıldı
+                            {% else %}
+                                Durdu
+                            {% endif %}
+                        </div>
+                        <div class="mb-2">
+                            <i class="fas fa-desktop me-2 text-muted"></i>
+                            <span>İstemciler: {{ bot_status.active_clients }}/{{ bot_status.total_clients }}</span>
+                        </div>
+                        {% if bot_status.current_task %}
+                        <div class="mb-2">
+                            <i class="fas fa-spinner me-2 text-muted"></i>
+                            <span>Görev: {{ bot_status.current_task }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mt-auto p-3">
+                        <div class="d-grid gap-2">
+                            {% if bot_status.running %}
+                                {% if bot_status.paused %}
+                                <button class="btn btn-warning btn-sm" id="resumeBtn">
+                                    <i class="fas fa-play me-2"></i>Devam Et
+                                </button>
+                                {% else %}
+                                <button class="btn btn-warning btn-sm" id="pauseBtn">
+                                    <i class="fas fa-pause me-2"></i>Duraklat
+                                </button>
+                                {% endif %}
+                                <button class="btn btn-danger btn-sm" id="stopBtn">
+                                    <i class="fas fa-stop me-2"></i>Durdur
+                                </button>
+                            {% else %}
+                                <button class="btn btn-success btn-sm" id="startBtn">
+                                    <i class="fas fa-play me-2"></i>Başlat
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Common Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Bot kontrol butonlarına event listener'lar ekle
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const pauseBtn = document.getElementById('pauseBtn');
+            const resumeBtn = document.getElementById('resumeBtn');
+            
+            if (startBtn) {
+                startBtn.addEventListener('click', function() {
+                    fetch('/api/start', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            window.location.reload();
+                        } else {
+                            alert('Bot başlatılamadı: ' + data.message);
+                        }
+                    });
+                });
+            }
+            
+            if (stopBtn) {
+                stopBtn.addEventListener('click', function() {
+                    fetch('/api/stop', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            window.location.reload();
+                        } else {
+                            alert('Bot durdurulamadı: ' + data.message);
+                        }
+                    });
+                });
+            }
+            
+            if (pauseBtn) {
+                pauseBtn.addEventListener('click', function() {
+                    fetch('/api/pause', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            window.location.reload();
+                        } else {
+                            alert('Bot duraklatılamadı: ' + data.message);
+                        }
+                    });
+                });
+            }
+            
+            if (resumeBtn) {
+                resumeBtn.addEventListener('click', function() {
+                    fetch('/api/resume', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            window.location.reload();
+                        } else {
+                            alert('Bot devam ettirilemedi: ' + data.message);
+                        }
+                    });
+                });
+            }
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

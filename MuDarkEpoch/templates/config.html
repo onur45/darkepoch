@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+
+{% block title %}Dark Epoch Bot - Konfigürasyon{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">Konfigürasyon</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="window.location.reload()">
+                <i class="fas fa-sync me-1"></i> Yenile
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card bg-dark border-secondary">
+            <div class="card-header">
+                <h5 class="mb-0">Bot Ayarları</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('edit_config') }}">
+                    <div class="row">
+                        {% for config in configs %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card bg-dark border-secondary">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ config.key }}</h6>
+                                    <p class="card-subtitle text-muted small mb-2">{{ config.description }}</p>
+                                    
+                                    {% if config.value_type == 'bool' %}
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" 
+                                                   id="config_{{ config.key }}" name="config_{{ config.key }}"
+                                                   {% if config.get_value() %}checked{% endif %}>
+                                            <label class="form-check-label" for="config_{{ config.key }}">
+                                                {{ 'Etkin' if config.get_value() else 'Devre Dışı' }}
+                                            </label>
+                                        </div>
+                                    {% elif config.value_type == 'json' %}
+                                        <textarea class="form-control font-monospace" id="config_{{ config.key }}" 
+                                                  name="config_{{ config.key }}" rows="4">{{ config.value }}</textarea>
+                                    {% elif config.value_type == 'int' %}
+                                        <input type="number" class="form-control" id="config_{{ config.key }}" 
+                                               name="config_{{ config.key }}" value="{{ config.value }}">
+                                    {% elif config.value_type == 'float' %}
+                                        <input type="number" class="form-control" id="config_{{ config.key }}" 
+                                               name="config_{{ config.key }}" value="{{ config.value }}" step="0.1">
+                                    {% else %}
+                                        <input type="text" class="form-control" id="config_{{ config.key }}" 
+                                               name="config_{{ config.key }}" value="{{ config.value }}">
+                                    {% endif %}
+                                    
+                                    <small class="form-text text-muted">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        Tip: {{ config.value_type }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-3">
+                        <button type="reset" class="btn btn-secondary me-md-2">Sıfırla</button>
+                        <button type="submit" class="btn btn-primary">Ayarları Kaydet</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Bool tipindeki bileşenlerin etiketlerini değiştirme
+        const boolSwitches = document.querySelectorAll('.form-check-input[type="checkbox"]');
+        boolSwitches.forEach(function(switchEl) {
+            switchEl.addEventListener('change', function() {
+                const label = this.nextElementSibling;
+                if (this.checked) {
+                    label.textContent = 'Etkin';
+                } else {
+                    label.textContent = 'Devre Dışı';
+                }
+            });
+        });
+        
+        // JSON doğrulama
+        const jsonInputs = document.querySelectorAll('textarea[id^="config_"]');
+        const form = document.querySelector('form');
+        
+        form.addEventListener('submit', function(event) {
+            let hasError = false;
+            
+            jsonInputs.forEach(function(input) {
+                if (input.id.includes('json')) {
+                    try {
+                        JSON.parse(input.value);
+                        // Geçerli JSON ise, inputu normal göster
+                        input.classList.remove('is-invalid');
+                    } catch (e) {
+                        // Geçersiz JSON ise, hatayı göster ve formu engelle
+                        input.classList.add('is-invalid');
+                        hasError = true;
+                        
+                        // Hata mesajı oluştur veya güncelle
+                        let errorMsg = input.nextElementSibling;
+                        if (!errorMsg || !errorMsg.classList.contains('invalid-feedback')) {
+                            errorMsg = document.createElement('div');
+                            errorMsg.classList.add('invalid-feedback');
+                            input.parentNode.insertBefore(errorMsg, input.nextSibling);
+                        }
+                        errorMsg.textContent = 'Geçersiz JSON formatı: ' + e.message;
+                    }
+                }
+            });
+            
+            if (hasError) {
+                event.preventDefault();
+                alert('Formda hatalı JSON verisi var. Lütfen düzeltin.');
+            }
+        });
+    });
+</script>
+{% endblock %}

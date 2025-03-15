@@ -1,0 +1,115 @@
+"""
+Dark Epoch Bot - Main Entry Point
+Replit ve Windows ortamlarında çalışacak şekilde tasarlanmıştır.
+"""
+
+import os
+import sys
+import logging
+import platform
+
+# Platforma göre modül içe aktarma
+try:
+    from app import app, init_db
+    HAS_WEB_INTERFACE = True
+except ImportError:
+    HAS_WEB_INTERFACE = False
+    print("Flask web arayüzü başlatılamadı.")
+
+# Çalışma ortamını kontrol et
+IS_REPLIT = os.environ.get('REPL_ID') is not None
+
+# X11 bağımlı modülleri koşullu olarak içe aktar
+# Sadece Windows ortamında veya Replit olmayan ortamlarda denemeyi yap
+if not IS_REPLIT and platform.system() == "Windows":
+    try:
+        import pyautogui
+        from bot import DarkEpochBot
+        HAS_GUI_SUPPORT = True
+    except ImportError:
+        HAS_GUI_SUPPORT = False
+        print("PyAutoGUI desteklenmiyor. Bot işlevselliği sınırlı olacak.")
+else:
+    HAS_GUI_SUPPORT = False
+    print("Replit ortamında çalışıyor, GUI desteği devre dışı.")
+
+# Loglama yapılandırması
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('bot.log')
+    ]
+)
+logger = logging.getLogger('DarkEpochBot')
+
+def is_windows():
+    """Sistemin Windows olup olmadığını kontrol et"""
+    return platform.system() == "Windows"
+
+def is_replit():
+    """Çalışma ortamının Replit olup olmadığını kontrol et"""
+    return os.environ.get('REPL_ID') is not None
+
+def main():
+    """Ana giriş noktası"""
+    logger.info(f"Dark Epoch Bot başlatılıyor - Platform: {platform.system()}")
+    
+    # Çalışma modunu belirle
+    if is_replit():
+        logger.info("Replit ortamında çalışıyor - Web arayüzü modu etkin")
+        run_web_interface()
+    elif is_windows() and HAS_GUI_SUPPORT:
+        logger.info("Windows ortamında çalışıyor - Tam bot modu etkin")
+        run_bot_with_web_client()
+    else:
+        logger.warning("Desteklenmeyen platform veya gerekli bağımlılıklar eksik")
+        print("Desteklenmeyen platform veya gerekli bağımlılıklar eksik")
+        print("Bot, Replit (web arayüzü) veya Windows (tam bot) ortamlarında çalışacak şekilde tasarlanmıştır.")
+        sys.exit(1)
+
+def run_web_interface():
+    """Flask web arayüzünü çalıştır"""
+    if not HAS_WEB_INTERFACE:
+        logger.error("Web arayüzü modülleri içe aktarılamadı")
+        return
+    
+    try:
+        logger.info("Veritabanı başlatılıyor...")
+        init_db()
+        
+        # Replit'te direkt olarak Flask'ı çalıştır
+        # Not: Replit'te gunicorn kullanılır, bu kod sadece lokal geliştirme için
+        if __name__ == "__main__" and not is_replit():
+            logger.info("Web arayüzü başlatılıyor...")
+            app.run(host="0.0.0.0", port=5000, debug=True)
+    except Exception as e:
+        logger.error(f"Web arayüzü başlatılırken hata: {str(e)}")
+
+def run_bot_with_web_client():
+    """Bot ve web istemci modunu çalıştır"""
+    if not HAS_GUI_SUPPORT:
+        logger.error("Bot modülleri içe aktarılamadı")
+        return
+    
+    try:
+        from config import load_config
+        
+        # Konfigürasyon yükle
+        config = load_config()
+        
+        # Botu başlat
+        bot = DarkEpochBot(config)
+        
+        # Web API ile iletişim kurmak için istemci başlat
+        # TODO: Web API istemci implementasyonu
+        
+        # Botu çalıştır
+        logger.info("Bot çalıştırılıyor...")
+        bot.start()
+    except Exception as e:
+        logger.error(f"Bot başlatılırken hata: {str(e)}")
+
+if __name__ == "__main__":
+    main()

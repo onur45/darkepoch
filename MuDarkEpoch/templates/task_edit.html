@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    {% if task %}
+        Dark Epoch Bot - "{{ task.name }}" Görevini Düzenle
+    {% else %}
+        Dark Epoch Bot - Yeni Görev
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        {% if task %}
+            "{{ task.name }}" Görevini Düzenle
+        {% else %}
+            Yeni Görev
+        {% endif %}
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('task_list') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Görevlere Dön
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card bg-dark border-secondary">
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="name" class="form-label">Görev Adı</label>
+                            <input type="text" class="form-control" id="name" name="name" 
+                                   value="{{ task.name if task else '' }}" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="type" class="form-label">Görev Tipi</label>
+                            <select class="form-select" id="type" name="type" required>
+                                <option value="">Seçin...</option>
+                                <option value="resource_gathering" 
+                                        {% if task and task.type == 'resource_gathering' %}selected{% endif %}>
+                                    Kaynak Toplama
+                                </option>
+                                <option value="combat" 
+                                        {% if task and task.type == 'combat' %}selected{% endif %}>
+                                    Dövüş
+                                </option>
+                                <option value="inventory_management" 
+                                        {% if task and task.type == 'inventory_management' %}selected{% endif %}>
+                                    Envanter Yönetimi
+                                </option>
+                                <option value="crafting" 
+                                        {% if task and task.type == 'crafting' %}selected{% endif %}>
+                                    Üretim
+                                </option>
+                                <option value="navigation" 
+                                        {% if task and task.type == 'navigation' %}selected{% endif %}>
+                                    Gezinme
+                                </option>
+                                <option value="custom" 
+                                        {% if task and task.type == 'custom' %}selected{% endif %}>
+                                    Özel
+                                </option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="priority" class="form-label">Öncelik</label>
+                            <input type="number" class="form-control" id="priority" name="priority" 
+                                   value="{{ task.priority if task else 1 }}" min="1" max="10">
+                            <div class="form-text">1 (düşük) - 10 (yüksek)</div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Açıklama</label>
+                        <textarea class="form-control" id="description" name="description" rows="2">{{ task.description if task else '' }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="parameters" class="form-label">Parametreler (JSON formatında)</label>
+                        <textarea class="form-control font-monospace" id="parameters" name="parameters" rows="8" style="font-size: 0.9rem;">{{ task.parameters if task else '{\n    "example_param": "value",\n    "numeric_param": 123,\n    "boolean_param": true,\n    "array_param": ["item1", "item2"]\n}' }}</textarea>
+                        <div class="form-text">Görev parametrelerini geçerli JSON formatında girin.</div>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="enabled" name="enabled" 
+                               {% if not task or task.enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="enabled">Görevi Etkinleştir</label>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('task_list') }}" class="btn btn-secondary me-md-2">İptal</a>
+                        <button type="submit" class="btn btn-primary">Kaydet</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Görev tipine göre örnek parametreler
+    const taskTypeExamples = {
+        'resource_gathering': {
+            resource_types: ['ore', 'herb', 'wood'],
+            max_gather_time: 120,
+            return_to_base: true
+        },
+        'combat': {
+            enemy_types: ['wolf', 'boar', 'bandit'],
+            max_combat_time: 60,
+            retreat_health_percent: 30,
+            use_health_potions: true
+        },
+        'inventory_management': {
+            keep_items: ['health_potion', 'magic_stone', 'weapon'],
+            sell_items: ['junk', 'gray_items'],
+            stack_items: true
+        },
+        'crafting': {
+            recipes: ['weapon', 'armor'],
+            min_materials: 5,
+            craft_all: false
+        },
+        'navigation': {
+            destination: 'town',
+            use_waypoints: true,
+            avoid_combat: false
+        },
+        'custom': {
+            custom_action: 'example',
+            parameters: {},
+            max_runtime: 60
+        }
+    };
+    
+    // Görev tipi değiştiğinde örnek parametreleri güncelle
+    document.getElementById('type').addEventListener('change', function() {
+        const taskType = this.value;
+        const parametersField = document.getElementById('parameters');
+        
+        // Mevcut değerleri korumak için JSON olarak geçerli mi kontrol et
+        let currentParams;
+        try {
+            currentParams = JSON.parse(parametersField.value);
+        } catch(e) {
+            // Mevcut içerik geçerli JSON değilse, varsayılan örneği kullan
+            if (taskType in taskTypeExamples) {
+                parametersField.value = JSON.stringify(taskTypeExamples[taskType], null, 4);
+            }
+            return;
+        }
+        
+        // Kullanıcı daha önce parametreleri değiştirdiyse ve içerik geçerli JSON ise,
+        // sadece yeni bir görev tipi seçildiyse ve parametreler boşsa güncelle
+        const isEmpty = Object.keys(currentParams).length === 0;
+        
+        if (isEmpty && taskType in taskTypeExamples) {
+            parametersField.value = JSON.stringify(taskTypeExamples[taskType], null, 4);
+        }
+    });
+    
+    // JSON formatını doğrula
+    document.querySelector('form').addEventListener('submit', function(event) {
+        const parametersField = document.getElementById('parameters');
+        
+        try {
+            JSON.parse(parametersField.value);
+        } catch(e) {
+            event.preventDefault();
+            alert('Parametreler geçerli JSON formatında değil: ' + e.message);
+        }
+    });
+</script>
+{% endblock %}
